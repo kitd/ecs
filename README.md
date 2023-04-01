@@ -1,2 +1,2 @@
 # ecs
-Bare-bones Entity Component System implementation
+Bare-bones Entity Component System implementation, for education purposes.
