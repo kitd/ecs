@@ -32,9 +32,28 @@ int main() {
 
     Pool::id_type entityId = pool._max_entities;
 
-    new (pool.ComponentAt<Health>(entityId)) Health{25};
+    new (pool.Component<Health>(entityId)) Health{25};
 
     assert(pool.ComponentArray<Health>()[entityId].health == 25);
+
+    Pool::id_type target = pool.NewEntity<Vector2D,Health>();
+    Vector2D *v2 = pool.Component<Vector2D>(target);
+    v2->x = 100;
+    v2->y = 200;
+
+    Pool::id_type bullet = pool.NewEntity<>();
+    pool.Assign<Vector3D>(bullet);
+    Vector3D *v3 = pool.Component<Vector3D>(bullet);
+    v3->x = 10;
+    v3->y = 20;
+    v3->z = 30;
+
+    pool.ForEachEntity<Vector2D>([&](Pool::id_type ent) {
+        v2->x += 10;
+        v2->y += 20;
+    });
+
+    assert( v2->x == 110 && v2->y == 220 && v3->x == 10 && v3->y == 20 && v3->z == 30);
 
     pool.Clear();
     assert(pool.Size() == 0);
