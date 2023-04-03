@@ -39,17 +39,18 @@ int main() {
 
     Pool::id_type bullet = pool.NewEntity<>();
     pool.Assign<Vector3D>(bullet);
-    Vector3D *v3 = pool.Component<Vector3D>(bullet);
-    v3->x = 10;
-    v3->y = 20;
-    v3->z = 30;
+    new (pool.Component<Vector3D>(bullet)) Vector3D{10, 20, 30};
 
     pool.ForEachEntity<Vector2D>([&](Pool::id_type ent) {
-        v2->x += 10;
-        v2->y += 20;
+        pool.Component<Vector2D>(ent)->x += 10;
+        pool.Component<Vector2D>(ent)->y += 20;
     });
 
-    assert( v2->x == 110 && v2->y == 220 && v3->x == 10 && v3->y == 20 && v3->z == 30);
+    assert( v2->x == 110 
+        && v2->y == 220 
+        && pool.Component<Vector3D>(bullet)->x == 10 
+        && pool.Component<Vector3D>(bullet)->y == 20 
+        && pool.Component<Vector3D>(bullet)->z == 30);
 
     pool.Clear();
     assert(pool.SizeBytes() == 0);
