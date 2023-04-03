@@ -14,25 +14,36 @@ struct Pool {
 
   id_type _max_entities;
 
+  template<typename... T>
+  void CreateUsing(size_t max_entities) {
+    _max_entities = max_entities;
+
+    id_type ids[] = { component_id<T>()... };
+    size_t total_size = std::accumulate( _comps.begin(), _comps.end(), 0, [](size_t acc, comp &c) { return acc + c.element_size; } );
+    _pool_size = total_size * _max_entities;
+    _the_pool = new pool_type[_pool_size / sizeof(pool_type)];
+
+    pool_type* curr_ptr = _the_pool;
+    for( id_type id: ids ) {
+      _comps[id].array = curr_ptr;
+      curr_ptr += _comps[id].element_size * _max_entities;
+    }
+
+  }
+
   ~Pool() {
     Clear();
   }
 
-  template<typename T>
-  inline id_type ComponentId() {
-    static id_type id = register_component( sizeof(T) );
-    return id;
-  }
-
-  template<typename T> 
-  inline T* ComponentArray() {
-    static T* array = (T*) (_comps[ComponentId<T>()].array);
-    return array;
-  }
-
   template<typename T> 
   inline T* Component( id_type pos ) {
-    return (ComponentArray<T>() + pos);
+    static T* array = (T*) (_comps[component_id<T>()].array);
+    return (array + pos);
+  }
+
+  template<typename T> 
+  inline T* Components() {
+    return Component<T>(0);
   }
 
   template<typename... T>
@@ -41,7 +52,7 @@ struct Pool {
       return 0xffff;
     }
 
-    mask_type mask = MaskFor<T...>();
+    mask_type mask = mask_for<T...>();
 
     id_type id = _ents.size();
     _ents.push_back( {id, mask} );
@@ -51,12 +62,12 @@ struct Pool {
   template<typename... T>
   void Assign(id_type entId) {
     ent& ent = _ents.at(entId);
-    ent.mask |= MaskFor<T...>();
+    ent.mask |= mask_for<T...>();
   }
 
   template<typename... T>
   void ForEachEntity( std::function<void (id_type)> fn ) {
-    mask_type mask = MaskFor<T...>();
+    mask_type mask = mask_for<T...>();
     for( ent& ent: _ents ) {
       if( mask == 0 || masks_match(ent.mask, mask) ) {
         fn(ent.id);
@@ -64,28 +75,7 @@ struct Pool {
     }
   }
 
-  template<typename... T>
-  inline mask_type MaskFor() {
-    static mask_type mask = create_mask<T...>();
-    return mask;
-  }
-
-  void Build() {
-    if( _max_entities == 0 ) {
-      _max_entities = _ents.size();
-    }
-
-    size_t total_size = std::accumulate( _comps.begin(), _comps.end(), 0, [](size_t acc, struct comp& c){ return acc + c.element_size; } );
-    _pool_size = total_size * _max_entities;
-    _the_pool = new pool_type[_pool_size];
-    pool_type* curr_ptr = _the_pool;
-    for( auto &comp : _comps ) {
-      comp.array = curr_ptr;
-      curr_ptr += comp.element_size * _max_entities;
-    }
-  }
-
-  size_t Size() {
+  inline size_t SizeBytes() {
     return _pool_size;
   }
   
@@ -96,15 +86,13 @@ struct Pool {
       _ents.clear();
       _max_entities = 0;
 
-      delete[] _the_pool;
+       delete[] _the_pool;
       _the_pool = nullptr;
       _pool_size = 0;
-
     }
   }
 
 private:
-
   struct comp {
     size_t element_size;
     pool_type* array;
@@ -117,6 +105,12 @@ private:
   };
   std::vector<ent> _ents{};
 
+  template<typename T>
+  inline id_type component_id() {
+    static id_type id = register_component( sizeof(T) );
+    return id;
+  }
+
   id_type register_component( size_t size ) {
     id_type id = _comps.size();
     _comps.push_back( {size, nullptr} );
@@ -124,12 +118,19 @@ private:
   }
 
   template<typename... T>
+  inline mask_type mask_for() {
+    static mask_type mask = create_mask<T...>();
+    return mask;
+  }
+
+  template<typename... T>
   mask_type create_mask() {
-    mask_type mask = 0L;
-    id_type compIds[] = { ComponentId<T>()... };
-    if( sizeof(*compIds) == 0 ) {
+    if( sizeof...(T) == 0 ) {
       return (mask_type)0L;
     }
+
+    mask_type mask = 0L;
+    id_type compIds[] = { component_id<T>()... };
     for( id_type compId : compIds ) {
       mask |= ( 0x01 << compId );
     } 
@@ -141,7 +142,7 @@ private:
   }
 
   pool_type* _the_pool = nullptr;
-  unsigned long long _pool_size = 0;
+  size_t _pool_size;
 };
 
 #endif

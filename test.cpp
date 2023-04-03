@@ -22,19 +22,15 @@ int main() {
 
     Pool pool;
 
-    pool._max_entities = 10;
-    pool.ComponentId<Vector3D>();
-    pool.ComponentId<Vector2D>();
-    pool.ComponentId<Health>();
-    pool.Build();
+    pool.CreateUsing<Vector3D,Vector2D,Health>(10);
 
-    assert(pool.Size() == 10 *(sizeof(Vector2D) + sizeof(Health) + sizeof(Vector3D)));
+    assert(pool.SizeBytes() == pool._max_entities * (sizeof(Vector2D) + sizeof(Health) + sizeof(Vector3D)));
 
     Pool::id_type entityId = pool._max_entities;
 
     new (pool.Component<Health>(entityId)) Health{25};
 
-    assert(pool.ComponentArray<Health>()[entityId].health == 25);
+    assert(pool.Components<Health>()[entityId].health == 25);
 
     Pool::id_type target = pool.NewEntity<Vector2D,Health>();
     Vector2D *v2 = pool.Component<Vector2D>(target);
@@ -56,7 +52,7 @@ int main() {
     assert( v2->x == 110 && v2->y == 220 && v3->x == 10 && v3->y == 20 && v3->z == 30);
 
     pool.Clear();
-    assert(pool.Size() == 0);
+    assert(pool.SizeBytes() == 0);
 
     return 0;
 }
