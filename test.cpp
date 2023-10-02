@@ -17,43 +17,45 @@ int main() {
     };
 
     struct Health {
-        int health;
+        int val;
     };
 
+    Pool::mem_type buffer[512];
     Pool pool;
 
-    pool.CreateUsing<Vector3D,Vector2D,Health>(10);
+    pool.Define<Vector3D,Vector2D,Health>(10);
 
     assert(pool.SizeBytes() == pool._max_entities * (sizeof(Vector2D) + sizeof(Health) + sizeof(Vector3D)));
 
+    pool.BuildAt(buffer);
+
     Pool::id_type entityId = pool._max_entities;
 
-    new (pool.Component<Health>(entityId)) Health{25};
+    new (pool.GetComponent<Health>(entityId)) Health{25};
 
-    assert(pool.Components<Health>()[entityId].health == 25);
+    Health& health = pool.GetComponents<Health>()[entityId];
+    assert(health.val == 25);
 
     Pool::id_type target = pool.NewEntity<Vector2D,Health>();
-    Vector2D *v2 = pool.Component<Vector2D>(target);
+    Vector2D *v2 = pool.GetComponent<Vector2D>(target);
     v2->x = 100;
     v2->y = 200;
 
     Pool::id_type bullet = pool.NewEntity<>();
     pool.Assign<Vector3D>(bullet);
-    new (pool.Component<Vector3D>(bullet)) Vector3D{10, 20, 30};
+    new (pool.GetComponent<Vector3D>(bullet)) Vector3D{10, 20, 30};
 
-    pool.ForEachEntity<Vector2D>([&](Pool::id_type ent) {
-        pool.Component<Vector2D>(ent)->x += 10;
-        pool.Component<Vector2D>(ent)->y += 20;
+    pool.ForEachEntityWithAll<Vector2D>([&](Pool::id_type ent) {
+        pool.GetComponent<Vector2D>(ent)->x += 10;
+        pool.GetComponent<Vector2D>(ent)->y += 20;
     });
 
     assert( v2->x == 110 
         && v2->y == 220 
-        && pool.Component<Vector3D>(bullet)->x == 10 
-        && pool.Component<Vector3D>(bullet)->y == 20 
-        && pool.Component<Vector3D>(bullet)->z == 30);
+        && pool.GetComponent<Vector3D>(bullet)->x == 10 
+        && pool.GetComponent<Vector3D>(bullet)->y == 20 
+        && pool.GetComponent<Vector3D>(bullet)->z == 30);
 
-    pool.Clear();
-    assert(pool.SizeBytes() == 0);
 
     return 0;
 }
